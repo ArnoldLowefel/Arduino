@@ -1,2 +1,2 @@
-#define WIFI_SSID "Android"
-#define WIFI_PASSWORD "mik12mik"
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
