@@ -4,7 +4,8 @@
 
 #include "arduino_secrets.h"
 
-
+String ssid = WIFI_SSID;
+String password = WIFI_PASSWORD;
 
 
 //#define MQTT_HOST IPAddress(192, 168, 1, XXX)
@@ -27,7 +28,9 @@ Ticker wifiReconnectTimer;
 
 void connectToWifi() {
   Serial.println("Connecting to Wi-Fi...");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.disconnect();
+  //delay(1000);
+  WiFi.begin(ssid, password);
 }
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
@@ -81,14 +84,18 @@ void onMqttPublish(uint16_t packetId) {
 }
 
 unsigned long previousMillis = 0;   // Stores last time temperature was published
-const long interval = 1000;        // Interval at which to publish sensor readings
+long interval = 1000;        // Interval at which to publish sensor readings
 
 #define AOUT_PIN A0 // Arduino pin that connects to AOUT pin of moisture sensor
+
+String input = "";
+bool things_to_set = false;
+int delimiter;
 
 void setup() {
   Serial.begin(115200);
   while(!Serial);
-  Serial.println();
+  Serial.println('\n');
 
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
@@ -102,10 +109,32 @@ void setup() {
   // If your broker requires authentication (username and password), set them below
   //mqttClient.setCredentials("REPlACE_WITH_YOUR_USER", "REPLACE_WITH_YOUR_PASSWORD");
   connectToWifi();  
-
 }
 
 void loop() {
+  while (Serial.available()) {
+    delay(3);  //delay to allow buffer to fill 
+    if (Serial.available() >0) {
+      char c = Serial.read();  //gets one byte from serial buffer
+      input += c; //makes the string readString
+    } 
+    things_to_set = true;
+  }
+  if(things_to_set){
+    if(input.substring(0,4) == "WiFi"){
+      delimiter = input.indexOf(':');
+      if (delimiter >= 0) {
+        ssid = input.substring(4, delimiter); // Extract the substring
+        password = input.substring(delimiter+1, input.length()-1);
+        Serial.println("New settings:" + ssid + ":" + password);
+        connectToWifi();
+      } else {
+        // Handle the case where ':' is not present in the input string
+      }
+    }
+    things_to_set = false;
+    input = "";
+  }
   unsigned long currentMillis = millis();
   // Every X number of seconds (interval = 10 seconds) 
   // it publishes a new MQTT message
